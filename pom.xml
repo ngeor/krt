@@ -22,7 +22,7 @@
     <checkstyle.version>10.4</checkstyle.version>
     <checkstyle-rules.version>6.3.0</checkstyle-rules.version>
     <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
-    <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
+    <jacoco-maven-plugin.version>0.8.10</jacoco-maven-plugin.version>
     <maven-javadoc-plugin.version>3.0.0</maven-javadoc-plugin.version>
     <native-maven-plugin.version>0.9.17</native-maven-plugin.version>
     <!-- JaCoCo thresholds. Increase gradually as you add tests. -->
