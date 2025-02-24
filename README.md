@@ -1,10 +1,6 @@
 # krt
 
-[![Java CI with Maven](https://github.com/ngeor/krt/actions/workflows/maven.yml/badge.svg)](https://github.com/ngeor/krt/actions/workflows/maven.yml)
-
-**Archived project!**
-This project is **archived** and will be **removed**.
-It has moved [here](https://github.com/ngeor/kamino/tree/master/cli/krt).
+[![build](https://github.com/ngeor/krt/actions/workflows/build.yml/badge.svg)](https://github.com/ngeor/krt/actions/workflows/build.yml)
 
 > Kamino Release Tool
 

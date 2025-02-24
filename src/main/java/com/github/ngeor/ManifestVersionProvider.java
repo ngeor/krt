@@ -1,14 +1,14 @@
 package com.github.ngeor;
 
-import picocli.CommandLine;
-
 import java.io.IOException;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
+import picocli.CommandLine;
 
 public class ManifestVersionProvider implements CommandLine.IVersionProvider {
+    @Override
     public String[] getVersion() throws Exception {
         Enumeration<URL> resources = getClass().getClassLoader().getResources("META-INF/MANIFEST.MF");
         while (resources.hasMoreElements()) {
@@ -17,15 +17,10 @@ public class ManifestVersionProvider implements CommandLine.IVersionProvider {
                 Manifest manifest = new Manifest(url.openStream());
                 if (isApplicableManifest(manifest)) {
                     Attributes attr = manifest.getMainAttributes();
-                    return new String[] {
-                        get(attr, "Implementation-Title") + " "
-                            + get(attr, "Implementation-Version")
-                    };
+                    return new String[] {get(attr, "Implementation-Title") + " " + get(attr, "Implementation-Version")};
                 }
             } catch (IOException ex) {
-                return new String[] {
-                    "Unable to read from " + url + ": " + ex
-                };
+                return new String[] {"Unable to read from " + url + ": " + ex};
             }
         }
         return new String[0];

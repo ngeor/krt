@@ -1,39 +1,38 @@
 package com.github.ngeor;
 
+import com.github.zafarkhaja.semver.Version;
 import java.io.IOException;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class VersionResolver {
-    private final GitTagProvider gitTagProvider;
+    private final VersionsProvider versionsProvider;
 
-    public VersionResolver(GitTagProvider gitTagProvider) {
-        this.gitTagProvider = gitTagProvider;
+    public VersionResolver(VersionsProvider versionsProvider) {
+        this.versionsProvider = versionsProvider;
     }
 
-    public SemVer resolve(String version) throws IOException, InterruptedException {
-        SortedSet<SemVer> versions = gitTagProvider.listVersions();
-        SemVerBump bump = SemVerBump.parse(version);
+    public Version resolve(String version) throws IOException, InterruptedException {
+        SortedSet<Version> versions = versionsProvider.listVersions();
+        SemVerBump bump = SemVerBump.tryParse(version).orElse(null);
         if (bump != null) {
-            return versions.last().bump(bump);
+            return bump.bump(versions.last());
         }
 
-        SemVer result = SemVer.parse(version);
+        Version result = Version.parse(version);
         if (!versions.isEmpty()) {
             if (versions.contains(result)) {
                 throw new IllegalArgumentException(String.format("Version %s already exists", version));
             }
 
-            SemVer latest = versions.last();
-            Set<SemVer> allowed = Set.of(
-                latest.bump(SemVerBump.MAJOR),
-                latest.bump(SemVerBump.MINOR),
-                latest.bump(SemVerBump.PATCH)
-            );
+            Version latest = versions.last();
+            Set<Version> allowed =
+                    Stream.of(SemVerBump.values()).map(b -> b.bump(latest)).collect(Collectors.toSet());
             if (!allowed.contains(result)) {
-                throw new IllegalArgumentException(String.format(
-                    "No sem ver gaps allowed. Allowed versions are: %s", allowed
-                ));
+                throw new IllegalArgumentException(
+                        String.format("No sem ver gaps allowed. Allowed versions are: %s", allowed));
             }
         }
 

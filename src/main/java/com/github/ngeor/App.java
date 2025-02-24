@@ -1,47 +1,42 @@
 package com.github.ngeor;
 
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
-
+import com.github.zafarkhaja.semver.Version;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 @Command(name = "krt", description = "kamino release tool", versionProvider = ManifestVersionProvider.class)
 public final class App implements Callable<Integer> {
-    @Option(names = {"-V", "--version"}, versionHelp = true, description = "Print version info and exit")
+    @Option(
+            names = {"-V", "--version"},
+            versionHelp = true,
+            description = "Print version info and exit")
     private boolean versionRequested;
 
     @Parameters(description = "The version to release. Either explicit version or one of major, minor, patch.")
     private String version;
 
     @Option(
-        names = {"-t", "--type"},
-        description = "The package type to use. Valid values: ${COMPLETION-CANDIDATES}",
-        required = true)
+            names = {"-t", "--type"},
+            description = "The package type to use. Valid values: ${COMPLETION-CANDIDATES}",
+            required = true)
     private ProjectType type;
 
     @SuppressWarnings("FieldMayBeFinal")
-    @Option(
-        names = "--no-fail-on-pending-changes",
-        negatable = true,
-        description = "Check for pending changes")
+    @Option(names = "--no-fail-on-pending-changes", negatable = true, description = "Check for pending changes")
     private boolean failOnPendingChanges = true;
 
     @SuppressWarnings("FieldMayBeFinal")
-    @Option(
-        names = "--no-push",
-        negatable = true,
-        description = "Push to the git remote"
-    )
+    @Option(names = "--no-push", negatable = true, description = "Push to the git remote")
     private boolean push = true;
 
-    public App() {
-    }
+    public App() {}
 
     public String getVersion() {
         return version;
@@ -65,15 +60,15 @@ public final class App implements Callable<Integer> {
      */
     public static void main(String[] args) {
         int exitCode = new CommandLine(new App())
-            .setCaseInsensitiveEnumValuesAllowed(true)
-            .execute(args);
+                .setCaseInsensitiveEnumValuesAllowed(true)
+                .execute(args);
         System.exit(exitCode);
     }
 
     @Override
     public Integer call() throws Exception {
         DirContext dirContext = DirContext.build();
-        Git git = new Git(dirContext.getRepoDir().toFile());
+        GitImpl git = new GitImpl(dirContext.getRepoDir().toFile());
         validateGitPreconditions(git);
         fetchAndPull(git);
 
@@ -81,7 +76,7 @@ public final class App implements Callable<Integer> {
         GitTagProvider gitTagProvider = new GitTagProvider(git, gitTagPrefix);
         VersionResolver versionResolver = new VersionResolver(gitTagProvider);
 
-        SemVer resolved = versionResolver.resolve(version);
+        Version resolved = versionResolver.resolve(version);
         version = resolved.toString();
 
         VersionSetter versionSetter = createVersionSetter(dirContext.getCurrentDir());
@@ -91,13 +86,11 @@ public final class App implements Callable<Integer> {
         GitCommitMessageProvider gitCommitMessageProvider = new GitCommitMessageProvider();
         git.commit(gitCommitMessageProvider.getMessage(dirContext, version));
 
-        GitTagMessageProvider gitTagMessageProvider = new GitTagMessageProvider(
-            dirContext, gitTagPrefix, version
-        );
+        GitTagMessageProvider gitTagMessageProvider = new GitTagMessageProvider(dirContext, gitTagPrefix, version);
         git.tag(gitTagMessageProvider.getMessage(), gitTagMessageProvider.getTag());
         doGitPush(git);
 
-        SemVer snapshotVersion = resolved.bump(SemVerBump.MINOR).preRelease("SNAPSHOT");
+        Version snapshotVersion = resolved.nextMinorVersion("SNAPSHOT");
         versionSetter.bumpVersion(snapshotVersion.toString());
         git.commit("chore(release): prepare for next development iteration");
         doGitPush(git);
@@ -137,17 +130,14 @@ public final class App implements Callable<Integer> {
         return versionSetter;
     }
 
-    private void updateChangelog(
-        DirContext dirContext,
-        Git git,
-        String tagPrefix
-    ) throws IOException, InterruptedException {
+    private void updateChangelog(DirContext dirContext, Git git, String tagPrefix)
+            throws IOException, InterruptedException {
         String tagPattern = tagPrefix + "[0-9]*";
         Path cliffTomlPath = Files.createTempFile("cliff", ".toml");
         File cliffTomlFile = cliffTomlPath.toFile();
         cliffTomlFile.deleteOnExit();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-            Objects.requireNonNull(getClass().getResourceAsStream("/cliff.toml"))))) {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(Objects.requireNonNull(getClass().getResourceAsStream("/cliff.toml"))))) {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(cliffTomlFile))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -168,21 +158,5 @@ public final class App implements Callable<Integer> {
         if (push) {
             git.push();
         }
-    }
-
-    private static String ensureSemVerRelease(String input) {
-        SemVer semVer = SemVer.parse(input);
-        if (semVer.isPreRelease()) {
-            throw new IllegalArgumentException("Version " + input + " is not allowed to be pre-release");
-        }
-        return semVer.toString();
-    }
-
-    private static String ensureSemVerPreRelease(String input) {
-        SemVer semVer = SemVer.parse(input);
-        if (!semVer.isPreRelease()) {
-            throw new IllegalArgumentException("Version " + input + " is not allowed to be a release");
-        }
-        return semVer.toString();
     }
 }
